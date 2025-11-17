@@ -1,44 +1,115 @@
+/**
+ * rejecter.js
+ *
+ * Generates "rejected" responses for each chapter using an LLM.
+ * This script creates alternative chapter versions based on the prompts,
+ * which can be used as negative examples in DPO (Direct Preference Optimization) training.
+ *
+ * Input: JSON file with chapters and prompts
+ * Output: JSON file with added 'rejected' field for each chapter
+ */
+
 import OpenAI from 'openai';
+import fs from 'fs';
+import config from './config.js';
 
-const URL = 'http://127.0.0.1:5001/v1';
-
-const openai = new OpenAI({ 
-	baseURL: URL,
-	apiKey: ''
+// Initialize OpenAI client with configured endpoint
+const openai = new OpenAI({
+  baseURL: config.api.baseURL,
+  apiKey: config.api.apiKey,
 });
 
-import fs from 'fs';
-const text = fs.readFileSync('prompts2.json', 'utf8');
-const json = JSON.parse(text);
+/**
+ * Generates a rejected response for a single chapter with retry logic
+ * @param {string} prompt - The writing prompt for the chapter
+ * @returns {Promise<Object>} Object containing the rejected text and token usage
+ */
+async function generateRejected(prompt) {
+  let retries = 0;
+  const maxRetries = config.processing.maxRetries;
 
-const n = json.length;
-console.log(`Loaded ${n} chapters of text.`);
-for (let i = 0; i < n; i++) {
-	console.log(`* Processing chapter ${i + 1} of ${n}...`);
-	const entry = json[i];
-	const prompt = entry.prompt;
-	let input = prompt;
-	const systemPrompt = `Given the following prompt, write a chapter of a novel. Do not mention the title of the book or the author in your response. Write as if you are continuing a story. Do not include the prompt or any other headings or instructions in your response.`;
-	let success = false;
-	//let temperature = 0.1;
-	while (!success) {
-		try {
-			const request = await openai.chat.completions.create({
-				messages: [
-					{ role: 'system', content: systemPrompt }, 
-					{ role: 'user', content: input }
-				],
-				//max_completion_tokens: 8196,
-				//temperature,
-			});
-			const output = request.choices[0].message.content;
-			console.log(output);
-			console.log(`- Generated ${request.usage.total_tokens} tokens.`);
-			json[i].rejected = output;
-			success = true;
-		} catch (error) {
-			console.error('! Error encountered... retrying...');
-		}
-	}
+  while (retries < maxRetries) {
+    try {
+      // Call the LLM to generate an alternative chapter
+      const response = await openai.chat.completions.create({
+        messages: [
+          { role: 'system', content: config.rejecter.systemPrompt },
+          { role: 'user', content: prompt },
+        ],
+        ...(config.api.model && { model: config.api.model }),
+      });
+
+      const output = response.choices[0].message.content;
+
+      return {
+        rejected: output,
+        tokens: response.usage.total_tokens,
+      };
+    } catch (error) {
+      console.error(`  ! Error encountered: ${error.message}`);
+      retries++;
+
+      if (retries >= maxRetries) {
+        throw new Error(`Failed after ${maxRetries} retries: ${error.message}`);
+      }
+
+      // Wait before retrying
+      await new Promise((resolve) =>
+        setTimeout(resolve, config.processing.retryDelay)
+      );
+    }
+  }
 }
-fs.writeFileSync('final.json', JSON.stringify(json, null, 2));
+
+/**
+ * Main execution function
+ */
+async function main() {
+  // Determine input and output file paths
+  const inputFile = process.argv[2] || config.files.prompts;
+  const outputFile = process.argv[3] || config.files.final;
+
+  console.log(`Reading from: ${inputFile}`);
+  console.log(`Writing to: ${outputFile}`);
+
+  // Load the JSON data
+  const text = fs.readFileSync(inputFile, 'utf8');
+  const json = JSON.parse(text);
+
+  const n = json.length;
+  console.log(`Loaded ${n} chapters to generate rejected responses for.\n`);
+
+  // Process each chapter
+  for (let i = 0; i < n; i++) {
+    console.log(`[${i + 1}/${n}] Processing chapter ${i + 1}...`);
+
+    const entry = json[i];
+    const prompt = entry.prompt;
+
+    try {
+      // Generate the rejected response
+      const result = await generateRejected(prompt);
+
+      // Store the rejected response
+      json[i].rejected = result.rejected;
+
+      console.log(`  Rejected: ${result.rejected.substring(0, 100)}...`);
+      console.log(`  Tokens used: ${result.tokens}\n`);
+    } catch (error) {
+      console.error(`  Failed to process chapter ${i + 1}: ${error.message}`);
+      process.exit(1);
+    }
+  }
+
+  // Save the results
+  fs.writeFileSync(outputFile, JSON.stringify(json, null, 2));
+
+  console.log(`Successfully processed ${n} chapters`);
+  console.log(`Output saved to: ${outputFile}`);
+}
+
+// Run the main function
+main().catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});
