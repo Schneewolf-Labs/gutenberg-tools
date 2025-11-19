@@ -25,7 +25,7 @@ const openai = new OpenAI({
  * @param {string} bookTitle - The title of the book to check for
  * @returns {boolean} True if banned content is detected
  */
-function hasBannedContent(text, bookTitle) {
+export function hasBannedContent(text, bookTitle) {
   const testText = text.toLowerCase();
 
   // Check for common writing errors (meta-commentary)
@@ -43,16 +43,17 @@ function hasBannedContent(text, bookTitle) {
  * Generates a summary for a single chapter with retry logic
  * @param {string} chapter - The chapter text to summarize
  * @param {string} bookTitle - The title of the book
+ * @param {Object} client - OpenAI client (for testing)
  * @returns {Promise<Object>} Object containing summary and token usage
  */
-async function generateSummary(chapter, bookTitle) {
+export async function generateSummary(chapter, bookTitle, client = openai) {
   let retries = 0;
   const maxRetries = config.processing.maxRetries;
 
   while (retries < maxRetries) {
     try {
       // Call the LLM to generate a summary
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         messages: [
           { role: 'system', content: config.summarizer.systemPrompt },
           { role: 'user', content: chapter },
@@ -137,8 +138,10 @@ async function main() {
   console.log(`Output saved to: ${outputFile}`);
 }
 
-// Run the main function
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+// Run the main function only if this script is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });
+}

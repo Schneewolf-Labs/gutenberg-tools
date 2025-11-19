@@ -1,5 +1,9 @@
 # outputs
 *.json
+# But don't ignore package.json and test fixtures
+!package.json
+!jest.config.js
+!__tests__/fixtures/*.json
 
 # Logs
 logs

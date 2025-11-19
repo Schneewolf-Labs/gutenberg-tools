@@ -1,5 +1,8 @@
 # gutenberg-tools
 
+[![Tests](https://github.com/Schneewolf-Labs/gutenberg-tools/actions/workflows/test.yml/badge.svg)](https://github.com/Schneewolf-Labs/gutenberg-tools/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A collection of scripts used to make the [gutenberg2-dpo](https://huggingface.co/datasets/nbeerbower/gutenberg2-dpo) dataset from Project Gutenberg books.
 
 ## Features
@@ -200,6 +203,35 @@ npm run prompt         # Run prompter.js only
 npm run reject         # Run rejecter.js only
 ```
 
+## Testing
+
+The project includes a comprehensive test suite using Jest.
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode (for development)
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
+### Test Coverage
+
+The test suite covers:
+- Text cleaning and normalization (clean-text.js)
+- Line break removal logic (deliner.js)
+- Summary generation with mocked LLM (summarizer.js)
+- Prompt generation with mocked LLM (prompter.js)
+- Rejected response generation with mocked LLM (rejecter.js)
+- Configuration validation (config.js)
+
+Tests are automatically run on every push and pull request via GitHub Actions.
+
 ## Error Handling
 
 All scripts include:
@@ -219,6 +251,9 @@ When contributing, please ensure:
 - All code includes JSDoc comments
 - Configuration changes are documented
 - Scripts maintain compatibility with the pipeline
+- All tests pass (`npm test`)
+- New features include corresponding tests
+- Code coverage remains above 70%
 
 ## License
 

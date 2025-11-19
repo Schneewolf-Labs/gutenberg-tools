@@ -19,7 +19,7 @@ import config from './config.js';
  * @param {string} text - The raw text to clean
  * @returns {string} Cleaned and normalized text
  */
-function cleanGutenbergText(text) {
+export function cleanGutenbergText(text) {
   // Handle THE END marker and remove everything after it
   if (text.includes('THE END')) {
     text = text.split('THE END')[0].trim() + '\n\nTHE END';
@@ -135,5 +135,7 @@ function main() {
   }
 }
 
-// Run the main function
-main();
+// Run the main function only if this script is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}

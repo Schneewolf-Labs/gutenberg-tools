@@ -17,7 +17,7 @@ import config from './config.js';
  * @param {string} text - The text to process
  * @returns {string} Text with single line breaks converted to spaces
  */
-function convertLineBreaksToSpaces(text) {
+export function convertLineBreaksToSpaces(text) {
   return text
     // Replace line breaks that are not part of paragraph breaks (double line breaks)
     // Uses negative lookbehind (?<!\n) and lookahead (?!\n) to match single \n only
@@ -62,5 +62,7 @@ function main() {
   console.log(`Output saved to: ${outputFile}`);
 }
 
-// Run the main function
-main();
+// Run the main function only if this script is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}

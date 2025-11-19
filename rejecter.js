@@ -22,16 +22,17 @@ const openai = new OpenAI({
 /**
  * Generates a rejected response for a single chapter with retry logic
  * @param {string} prompt - The writing prompt for the chapter
+ * @param {Object} client - OpenAI client (for testing)
  * @returns {Promise<Object>} Object containing the rejected text and token usage
  */
-async function generateRejected(prompt) {
+export async function generateRejected(prompt, client = openai) {
   let retries = 0;
   const maxRetries = config.processing.maxRetries;
 
   while (retries < maxRetries) {
     try {
       // Call the LLM to generate an alternative chapter
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         messages: [
           { role: 'system', content: config.rejecter.systemPrompt },
           { role: 'user', content: prompt },
@@ -108,8 +109,10 @@ async function main() {
   console.log(`Output saved to: ${outputFile}`);
 }
 
-// Run the main function
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+// Run the main function only if this script is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });
+}

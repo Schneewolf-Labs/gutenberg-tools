@@ -25,7 +25,7 @@ const openai = new OpenAI({
  * @param {boolean} isFirst - Whether this is the first chapter
  * @returns {string} The system prompt
  */
-function buildSystemPrompt(book, isFirst) {
+export function buildSystemPrompt(book, isFirst) {
   const opener = isFirst
     ? config.prompter.systemOpenerFirst(book)
     : config.prompter.systemOpenerNext(book);
@@ -43,7 +43,7 @@ function buildSystemPrompt(book, isFirst) {
  * @param {string|null} previousSummary - Summary of the previous chapter (null for first chapter)
  * @returns {string} The user input for the LLM
  */
-function buildUserInput(chapter, previousSummary) {
+export function buildUserInput(chapter, previousSummary) {
   if (!previousSummary) {
     return chapter;
   }
@@ -57,9 +57,10 @@ function buildUserInput(chapter, previousSummary) {
  * @param {string} book - The title of the book
  * @param {boolean} isFirst - Whether this is the first chapter
  * @param {string|null} previousSummary - Summary of previous chapter
+ * @param {Object} client - OpenAI client (for testing)
  * @returns {Promise<Object>} Object containing the prompt and token usage
  */
-async function generatePrompt(chapter, book, isFirst, previousSummary) {
+export async function generatePrompt(chapter, book, isFirst, previousSummary, client = openai) {
   let retries = 0;
   const maxRetries = config.processing.maxRetries;
   let userInput = buildUserInput(chapter, previousSummary);
@@ -68,7 +69,7 @@ async function generatePrompt(chapter, book, isFirst, previousSummary) {
   while (retries < maxRetries) {
     try {
       // Call the LLM to generate a writing prompt
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userInput },
@@ -165,8 +166,10 @@ async function main() {
   console.log(`Output saved to: ${outputFile}`);
 }
 
-// Run the main function
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+// Run the main function only if this script is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });
+}
